@@ -23,8 +23,7 @@ class GetMeiziPic(object):
     def __init__(self):
         super(GetMeiziPic, self).__init__()
         self.max = None
-        # sample: <img src="http://ww1.sinaimg.cn/mw600/005vbOHfgw1eohghggdpjj30cz0ll0x5.jpg" style="max-width: 486px; max-height: 450px;">
-        self.ImgRegex = r'<p><img[^>]*?src\s*=\s*["\']?([^\'" >]+?)[ \'"][^>]*?></p>'
+        self.cookies = {}
         self._isUrlFormat = re.compile(r'http://([\w-]+\.)+[\w-]+(/[\w\- ./?%&=]*)?');
         self._path = self.DealDir("Images")
         print("===============   start   ===============");
@@ -38,7 +37,9 @@ class GetMeiziPic(object):
             print("===============   loading page {0}   ===============".format(i))
             with open('last', 'w') as f:
                 f.write(str(i))
-            self.DoFetch(i)
+            if not self.DoFetch(i):
+                print 'Fail DoFetch'
+                break
             i += 1
             if i > self.max:
                 break
@@ -53,31 +54,62 @@ class GetMeiziPic(object):
         url = "http://jandan.net/ooxx/page-{0}#comments".format(pageNum)
         print "GET", url
         headers = {'user-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36'}
-        response = requests.get(url, headers=headers)
+        print "GET", url, headers, self.cookies
+        response = requests.get(url, headers=headers, cookies=self.cookies)
+        if response.status_code == 403:
+            print "403, need check"
+            #print response.text
+            if 'set-cookie' in response.headers:
+                sc = response.headers['set-cookie']
+                k,v = sc.split('=')
+                self.cookies[k] = v
+                print 'set-cookie',k,'=',v
+            d = pq(response.text)
+            payload = dict([(x.name, x.value) for x in d('form input')])
+            url = 'http://jandan.net/block.php'+d('form')[0].action
+            print response.url
+            headers['Referer'] = response.url
+            print url,payload,headers,self.cookies
+            r = requests.post(url, data=payload, headers=headers, cookies=self.cookies)
+            print r.status_code
+            print r.headers
+            #print r.text
+            print 'write to'
+            with open('debug.html', 'w') as f:
+                f.write(r.text)
+            return False
 
         if response.status_code != 200:
             print "Fail", response.status_code
-            print response.text
-            return
+            #print response.text
+            return False
         # stream = response.GetResponseStream();
         if len(response.text) == 0: return;
         if self.max is None:
             self.max = self.get_max(response.text)
 
-        self.FetchLinksFromSource(response.text);
+        return self.FetchLinksFromSource(response.text)
+    
 
     # @return int
     def get_max(self, html_code):
-        print html_code
         d = pq(html_code)
         for a in d('#comments')[0].find_class('comments')[0].find_class('cp-pagenavi')[0].getchildren():
             if unicode(a.text).isnumeric():
                 return int(a.text)
         raise Exception("no int")
     def FetchLinksFromSource(self, htmlSource):
-        prog = re.compile(self.ImgRegex, re.IGNORECASE)
-        matchesImgSrc = prog.findall(htmlSource)
-        for href in matchesImgSrc:
+        d = pq(htmlSource)
+        for li in d('#comments ol li'):
+            class_text_list = li.find_class('text')
+            class_text = class_text_list[0]
+            attrib = class_text.find('p').find('img').attrib
+            if 'org_src' in attrib:
+                print 'fonund a gif'
+                href = attrib['org_src']
+            else:
+                href = attrib['src']
+
             # only for sina image
             if ".sinaimg." in href and self.CheckIsUrlFormat(href):
                 print href
@@ -85,6 +117,7 @@ class GetMeiziPic(object):
                 continue;
 
             self.download_file(href)
+        return True
 
     def CheckIsUrlFormat(self, value):
         return self._isUrlFormat.match(value) is not None
