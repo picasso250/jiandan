@@ -129,7 +129,6 @@ class GetMeiziPic(object):
         else:
             print '\t=>',local_filename
         try:
-            pass
             # NOTE the stream=True parameter
             r = requests.get(url, stream=True)
         except Exception, e:
