@@ -82,7 +82,8 @@ class GetMeiziPic(object):
             #print response.text
             return False
         # stream = response.GetResponseStream();
-        if len(response.text) == 0: return;
+        if len(response.text) == 0:
+            return False
         if self.max is None:
             self.max = self.get_max(response.text)
 
@@ -103,8 +104,11 @@ class GetMeiziPic(object):
             if 'org_src' in attrib:
                 print 'fonund a gif'
                 href = attrib['org_src']
-            else:
+            elif 'src' in attrib:
                 href = attrib['src']
+            else:
+                print attrib, 'fuck, no src'
+                continue
 
             # only for sina image
             if ".sinaimg." in href and self.CheckIsUrlFormat(href):
@@ -124,8 +128,13 @@ class GetMeiziPic(object):
             return
         else:
             print '\t=>',local_filename
-        # NOTE the stream=True parameter
-        r = requests.get(url, stream=True)
+        try:
+            pass
+            # NOTE the stream=True parameter
+            r = requests.get(url, stream=True)
+        except Exception, e:
+            print e
+            return False
         with open(local_filename, 'wb') as f:
             for chunk in r.iter_content(chunk_size=1024): 
                 if chunk: # filter out keep-alive new chunks
