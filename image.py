@@ -74,9 +74,7 @@ class GetMeiziPic(object):
             print r.status_code
             print r.headers
             #print r.text
-            print 'write to'
-            with open('debug.html', 'w') as f:
-                f.write(r.text)
+
             return False
 
         if response.status_code != 200:
@@ -100,10 +98,8 @@ class GetMeiziPic(object):
         raise Exception("no int")
     def FetchLinksFromSource(self, htmlSource):
         d = pq(htmlSource)
-        for li in d('#comments ol li'):
-            class_text_list = li.find_class('text')
-            class_text = class_text_list[0]
-            attrib = class_text.find('p').find('img').attrib
+        for img in d('#comments ol li .text img'):
+            attrib = img.attrib
             if 'org_src' in attrib:
                 print 'fonund a gif'
                 href = attrib['org_src']
