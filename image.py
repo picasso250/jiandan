@@ -29,7 +29,7 @@ class GetMeiziPic(object):
         print("===============   start   ===============");
 
         last = 'last'
-        i = 900
+        i = 1500
         if os.path.exists(last):
             i = int(open(last, 'r').read(1000))
             print 'last', i
@@ -97,6 +97,7 @@ class GetMeiziPic(object):
             if unicode(a.text).isnumeric():
                 return int(a.text)
         raise Exception("no int")
+
     def FetchLinksFromSource(self, htmlSource):
         d = pq(htmlSource)
         for img in d('#comments ol li .text img'):
